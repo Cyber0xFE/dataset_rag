@@ -14,9 +14,9 @@ from app.import_process.agent.state import ImportGraphState
 
 
 def route_entry(state: ImportGraphState) -> str:
-    if state.is_md_read_enabled:
+    if state.get('is_md_read_enabled'):
         return "to_node_md_img"
-    elif state.is_pdf_read_enabled:
+    elif state.get('is_pdf_read_enabled'):
         return "to_node_pdf_to_md"
     return "to_end"
 
@@ -46,4 +46,6 @@ graph.add_edge("node_bge_embedding", "node_import_milvus")
 graph.add_edge("node_import_milvus", END)
 
 app = graph.compile()
-app.get_graph().print_ascii()
+
+if __name__ == '__main__':
+    app.get_graph().print_ascii()
