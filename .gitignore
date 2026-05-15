@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# IDE - 项目共享配置保留，用户个人配置忽略
+.idea/workspace.xml
+.idea/*.xml
+!.idea/misc.xml
+
+# 运行时
+logs/
+*.log
+
+# 环境
+.env
+
+# 系统
+.DS_Store
+Thumbs.db
