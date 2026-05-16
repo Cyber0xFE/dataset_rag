@@ -6,9 +6,8 @@ from app.import_process.agent.state import create_default_state
 
 logger.info("===== 开始测试 =====")
 
-initial_state = create_default_state(local_file_path="万用表RS-12的使用.pdf",
-                                     is_pdf_read_enabled=True,
-                                     pdf_path="万用表RS-12的使用.pdf")
+initial_state = create_default_state(local_file_path="E:/BaiduNetdiskDownload/05_项目_掌柜智库/掌柜智库项目/资料/doc/万用表RS-12的使用.pdf",
+                                     is_pdf_read_enabled=True)
 final_state = None
 
 # 只输出更最终的状态值（字典形式），不包含节点名称、执行日志、元数据等额外信息
