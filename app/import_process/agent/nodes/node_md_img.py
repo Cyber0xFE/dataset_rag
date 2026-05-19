@@ -14,14 +14,17 @@ from app.lm import lm_utils
 from app.utils.task_utils import add_running_task
 
 
-def _upload_to_minio(md_dir: str, img_path: str) -> str:
-    """将本地图片上传到MinIO，返回可公开访问的URL。"""
+def _batch_upload_to_minio(md_dir: str, img_paths: list) -> dict:
+    """批量上传本地图片到MinIO，返回 {img_path: url} 映射。"""
     minio_client = get_minio_client()
-    img_full_path = os.path.join(md_dir, img_path)
-    object_name = f"{minio_config.minio_img_dir}/{img_path}"
-    minio_client.fput_object(minio_config.bucket_name, object_name, img_full_path)
     protocol = "https" if minio_config.minio_secure else "http"
-    return f"{protocol}://{minio_config.endpoint}/{minio_config.bucket_name}/{object_name}"
+    url_map = {}
+    for img_path in img_paths:
+        img_full_path = os.path.join(md_dir, img_path)
+        object_name = f"{minio_config.minio_img_dir}/{img_path}"
+        minio_client.fput_object(minio_config.bucket_name, object_name, img_full_path)
+        url_map[img_path] = f"{protocol}://{minio_config.endpoint}/{minio_config.bucket_name}/{object_name}"
+    return url_map
 
 
 def _image_summary(lv, md_dir: str, root_folder: str, img_path: str, before: str, after: str) -> str:
@@ -74,20 +77,31 @@ def node_md_img(state: ImportGraphState) -> ImportGraphState:
 
     md_dir = os.path.dirname(state['md_path'])
     root_folder = Path(state['md_path']).stem
+
+    # 清空MinIO bucket中的旧文件
+    minio_client = get_minio_client()
+    objects = list(minio_client.list_objects(minio_config.bucket_name))
+    if objects:
+        minio_client.remove_objects(minio_config.bucket_name, [o.object_name for o in objects])
+        logger.info(f"[{fun_name}] 已清空bucket({len(objects)}个文件)")
+    # 批量上传图片到MinIO
+    img_url_map = _batch_upload_to_minio(md_dir, [img_path for _, img_path, _ in img_contexts])
+    logger.info(f"[{fun_name}] 批量上传完成：{img_url_map}")
+
     for img_context in img_contexts:
         alt_text, img_path, (before, after) = img_context
         summary = _image_summary(lv, md_dir, root_folder, img_path, before, after)
         logger.info(f"[{fun_name}] 图片摘要：{summary}")
 
-        img_url = _upload_to_minio(md_dir, img_path)
-        logger.info(f"[{fun_name}] 图片已上传：{img_url}")
-
-        # 更新md_content：替换为摘要+MinIO URL
+        img_url = img_url_map[img_path]
         old_ref = f'![{alt_text}]({img_path})'
         new_ref = f'![{summary}]({img_url})'
         md_content = md_content.replace(old_ref, new_ref, 1)
 
     state['md_content'] = md_content
+    md_path = Path(state['md_path'])
+    new_md_path = md_path.with_name(f"{md_path.stem}_new{md_path.suffix}")
+    new_md_path.write_text(md_content, encoding="utf-8")
     return state
 
 if __name__ == "__main__":
