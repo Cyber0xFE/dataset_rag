@@ -1,8 +1,10 @@
-import base64
 import os
 import re
 import sys
+from collections import deque
 from pathlib import Path
+
+from minio.deleteobjects import DeleteObject
 
 from app.clients.minio_utils import get_minio_client
 from app.conf.lm_config import lm_config
@@ -11,7 +13,21 @@ from app.core.load_prompt import load_prompt
 from app.core.logger import logger
 from app.import_process.agent.state import ImportGraphState
 from app.lm import lm_utils
+from app.utils.rate_limit_utils import apply_api_rate_limit
 from app.utils.task_utils import add_running_task
+
+# VL模型请求时间戳队列，用于滑动窗口限流（RPM=3000）
+_vl_request_times = deque()
+
+
+def _clear_minio_dir(minio_client, prefix: str) -> int:
+    """清空MinIO指定目录下的所有文件，返回删除文件数。"""
+    objects = list(minio_client.list_objects(minio_config.bucket_name, prefix=prefix, recursive=True))
+    if objects:
+        errors = list(minio_client.remove_objects(minio_config.bucket_name, [DeleteObject(o.object_name) for o in objects]))
+        if errors:
+            logger.warning(f"MinIO删除出错: {errors}")
+    return len(objects)
 
 
 def _batch_upload_to_minio(md_dir: str, img_paths: list) -> dict:
@@ -21,29 +37,21 @@ def _batch_upload_to_minio(md_dir: str, img_paths: list) -> dict:
     url_map = {}
     for img_path in img_paths:
         img_full_path = os.path.join(md_dir, img_path)
-        object_name = f"{minio_config.minio_img_dir}/{img_path}"
+        object_name = f"{minio_config.minio_img_dir}/{img_path}".lstrip("/")
         minio_client.fput_object(minio_config.bucket_name, object_name, img_full_path)
         url_map[img_path] = f"{protocol}://{minio_config.endpoint}/{minio_config.bucket_name}/{object_name}"
     return url_map
 
 
-def _image_summary(lv, md_dir: str, root_folder: str, img_path: str, before: str, after: str) -> str:
-    """加载提示词，将本地图片 base64 编码后调用 VL 模型，返回图片摘要。"""
-    img_full_path = os.path.join(md_dir, img_path)
-    with open(img_full_path, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode("utf-8")
-    img_suffix = os.path.splitext(img_path)[1].lstrip(".") or "png"
-    img_data_uri = f"data:image/{img_suffix};base64,{img_b64}"
-
+def _image_summary(lv, root_folder: str, img_url: str, before: str, after: str) -> str:
+    """调用 VL 模型生成图片摘要，img_url 为 MinIO 公开访问地址。"""
     prompt = load_prompt('image_summary', root_folder=root_folder, image_content=[before, after])
+    apply_api_rate_limit(_vl_request_times, max_requests=3000)
     r = lv.invoke([
         {
             "role": "user",
             "content": [
-                {
-                    "type": "image_url",
-                    "image_url": {"url": img_data_uri},
-                },
+                {"type": "image_url", "image_url": {"url": img_url}},
                 {"type": "text", "text": prompt},
             ],
         },
@@ -78,22 +86,21 @@ def node_md_img(state: ImportGraphState) -> ImportGraphState:
     md_dir = os.path.dirname(state['md_path'])
     root_folder = Path(state['md_path']).stem
 
-    # 清空MinIO bucket中的旧文件
+    # 清空上传目录后批量上传图片到MinIO
     minio_client = get_minio_client()
-    objects = list(minio_client.list_objects(minio_config.bucket_name))
-    if objects:
-        minio_client.remove_objects(minio_config.bucket_name, [o.object_name for o in objects])
-        logger.info(f"[{fun_name}] 已清空bucket({len(objects)}个文件)")
+    prefix = minio_config.minio_img_dir.lstrip("/")
+    deleted_count = _clear_minio_dir(minio_client, prefix)
+    logger.info(f"[{fun_name}] 已清空目录 {prefix}({deleted_count}个文件)")
     # 批量上传图片到MinIO
     img_url_map = _batch_upload_to_minio(md_dir, [img_path for _, img_path, _ in img_contexts])
     logger.info(f"[{fun_name}] 批量上传完成：{img_url_map}")
 
     for img_context in img_contexts:
         alt_text, img_path, (before, after) = img_context
-        summary = _image_summary(lv, md_dir, root_folder, img_path, before, after)
+        img_url = img_url_map[img_path]
+        summary = _image_summary(lv, root_folder, img_url, before, after)
         logger.info(f"[{fun_name}] 图片摘要：{summary}")
 
-        img_url = img_url_map[img_path]
         old_ref = f'![{alt_text}]({img_path})'
         new_ref = f'![{summary}]({img_url})'
         md_content = md_content.replace(old_ref, new_ref, 1)
