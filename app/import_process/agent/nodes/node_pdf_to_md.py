@@ -182,8 +182,6 @@ def node_pdf_to_md(state: ImportGraphState) -> ImportGraphState:
         md_path = _download_and_extract(pdf_path, full_zip_url)
 
         state['md_path'] = md_path
-        # with open(md_path, "r", encoding="utf-8") as f:
-        #     state['md_content'] = f.read()
 
     except Exception as e:
         logger.error(f"[{fun_name}] error: {e}")

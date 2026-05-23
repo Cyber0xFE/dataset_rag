@@ -14,7 +14,7 @@ from app.core.logger import logger
 from app.import_process.agent.state import ImportGraphState
 from app.lm import lm_utils
 from app.utils.rate_limit_utils import apply_api_rate_limit
-from app.utils.task_utils import add_running_task
+from app.utils.task_utils import add_running_task, add_done_task
 
 # VL模型请求时间戳队列，用于滑动窗口限流（RPM=3000）
 _vl_request_times = deque()
@@ -109,6 +109,10 @@ def node_md_img(state: ImportGraphState) -> ImportGraphState:
     md_path = Path(state['md_path'])
     new_md_path = md_path.with_name(f"{md_path.stem}_new{md_path.suffix}")
     new_md_path.write_text(md_content, encoding="utf-8")
+
+    logger.info(f"[{fun_name}] end")
+    add_done_task(state['task_id'], fun_name)
+
     return state
 
 if __name__ == "__main__":
