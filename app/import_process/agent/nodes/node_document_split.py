@@ -29,7 +29,7 @@ def _split_by_headings(md_content: str, file_title: str) -> list:
             start = m.start()
             if section_start == 0 and start > 0:
                 chunks.append({
-                    "title": "",
+                    "title": "default_title_preamble",
                     "content": md_content[:start].strip(),
                     "file_title": file_title,
                 })
@@ -50,7 +50,7 @@ def _split_by_headings(md_content: str, file_title: str) -> list:
         })
     elif not chunks:
         chunks.append({
-            "title": "",
+            "title": "default_title_document",
             "content": md_content.strip(),
             "file_title": file_title,
         })
