@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import sys
@@ -80,7 +81,7 @@ def _merge_small_chunks(chunks: list, min_size: int) -> list:
     for i in range(1, len(chunks)):
         prev = result[-1]
         curr = chunks[i]
-        if len(prev['content']) >= min_size:
+        if len(prev['content']) >= min_size or prev['parent_title'] != curr['parent_title']:
             result.append(dict(curr))
         else:
             # 合并到前一个 chunk，去除 prev 尾部与 curr 头部的重复
@@ -116,6 +117,15 @@ def _split_chunks(heading_chunks: list) -> list:
     return chunks
 
 
+def _save_chunks_json(chunks: list, file_title: str, output_dir: str) -> None:
+    """将 chunks 序列化为 JSON 保存到 output_dir。"""
+    os.makedirs(output_dir, exist_ok=True)
+    json_path = os.path.join(output_dir, f"{file_title}_chunks.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(chunks, f, ensure_ascii=False, indent=2)
+    logger.info(f"chunks 已保存至 {json_path}")
+
+
 def node_document_split(state: ImportGraphState) -> ImportGraphState:
     fun_name = sys._getframe().f_code.co_name
 
@@ -136,7 +146,7 @@ def node_document_split(state: ImportGraphState) -> ImportGraphState:
         chunks = _merge_small_chunks(chunks, MIN_CHUNK_SIZE)
 
         state['chunks'] = chunks
-
+        _save_chunks_json(chunks, file_title, state.get('local_dir', os.path.dirname(state.get('md_path', ''))))
     except Exception as e:
         logger.error(f"[{fun_name}] error: {e}")
         raise e
@@ -156,7 +166,6 @@ if __name__ == '__main__':
 
     """本地测试入口：单独运行该文件时，执行MD图片处理全流程测试"""
     from app.utils.path_util import PROJECT_ROOT
-    from app.import_process.agent.nodes.node_md_img import node_md_img
 
     logger.info(f"本地测试 - 项目根目录：{PROJECT_ROOT}")
 
@@ -177,11 +186,6 @@ if __name__ == '__main__':
             "file_title": "万用表RS-12的使用",
             "local_dir":os.path.join(PROJECT_ROOT, "output"),
         }
-        # logger.info("开始本地测试 - MD图片处理全流程")
-        # 执行核心处理流程
-        # result_state = node_md_img(test_state)
-        # logger.info(f"本地测试完成 - 处理结果状态：{result_state}")
-        # logger.info("\n=== 开始执行文档切分节点集成测试 ===")
 
         logger.info(">> 开始运行当前节点：node_document_split（文档切分）")
         final_state = node_document_split(test_state)
