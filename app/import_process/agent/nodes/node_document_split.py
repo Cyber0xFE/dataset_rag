@@ -2,9 +2,118 @@ import os
 import re
 import sys
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from app.core.logger import logger
+
+# 递归切割器常量
+MAX_CHUNK_SIZE = 100
+CHUNK_OVERLAP = 10
+MIN_CHUNK_SIZE = 50
 from app.import_process.agent.state import ImportGraphState
 from app.utils.task_utils import add_running_task, add_done_task
+
+
+def _split_by_headings(md_content: str, file_title: str) -> list:
+    """按标题切分 markdown，跳过代码块内的 #，返回 chunk 列表。"""
+    chunks = []
+    in_code = False
+    section_start = 0
+    current_title = ""
+
+    for m in re.finditer(r'(^(?:```|~~~).*$)|(^(#+)\s+(.+)$)', md_content, re.MULTILINE):
+        if m.group(1):
+            in_code = not in_code
+        elif not in_code and m.group(2):
+            start = m.start()
+            if section_start == 0 and start > 0:
+                chunks.append({
+                    "title": "",
+                    "content": md_content[:start].strip(),
+                    "file_title": file_title,
+                })
+            elif section_start > 0:
+                chunks.append({
+                    "title": current_title,
+                    "content": md_content[section_start:start].strip(),
+                    "file_title": file_title,
+                })
+            current_title = f"{m.group(3)} {m.group(4)}"
+            section_start = start
+
+    if section_start > 0:
+        chunks.append({
+            "title": current_title,
+            "content": md_content[section_start:].strip(),
+            "file_title": file_title,
+        })
+    elif not chunks:
+        chunks.append({
+            "title": "",
+            "content": md_content.strip(),
+            "file_title": file_title,
+        })
+
+    return chunks
+
+
+def _ensure_overlap(texts: list, overlap: int) -> list:
+    """保证相邻文本块之间有 overlap 字符的重叠（弥补 RecursiveCharacterTextSplitter 跨层级不重叠的问题）。"""
+    if len(texts) <= 1 or overlap <= 0:
+        return texts
+    result = [texts[0]]
+    for i in range(1, len(texts)):
+        prev = texts[i - 1]
+        curr = texts[i]
+        tail = prev[-overlap:] if len(prev) >= overlap else prev
+        if tail and not curr.startswith(tail):
+            curr = tail + curr
+        result.append(curr)
+    return result
+
+
+def _merge_small_chunks(chunks: list, min_size: int) -> list:
+    """合并小于 min_size 的 chunk 到前一个 chunk，重叠部分去重。"""
+    if not chunks:
+        return chunks
+    result = [dict(chunks[0])]
+    for i in range(1, len(chunks)):
+        prev = result[-1]
+        curr = chunks[i]
+        if len(prev['content']) >= min_size:
+            result.append(dict(curr))
+        else:
+            # 合并到前一个 chunk，去除 prev 尾部与 curr 头部的重复
+            prev_tail = prev['content']
+            curr_head = curr['content']
+            overlap = 0
+            max_check = min(len(prev_tail), len(curr_head))
+            for ol in range(max_check, 0, -1):
+                if prev_tail[-ol:] == curr_head[:ol]:
+                    overlap = ol
+                    break
+            prev['content'] = prev_tail + curr_head[overlap:]
+    return result
+
+
+def _split_chunks(heading_chunks: list) -> list:
+    """用 RecursiveCharacterTextSplitter 对每个 heading chunk 递归切割，补 overlap。"""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=MAX_CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP, separators=["\n\n", "\n", "。", "！", "？", "．", "，", ",", " ", ""]
+    )
+    chunks = []
+    for c in heading_chunks:
+        sub_texts = splitter.split_text(c['content'])
+        sub_texts = _ensure_overlap(sub_texts, CHUNK_OVERLAP)
+        for part_no, st in enumerate(sub_texts):
+            chunks.append({
+                "title": f"{c['title']}_{part_no}",
+                "content": st,
+                "file_title": c['file_title'],
+                "parent_title": c['title'],
+                "part": part_no,
+            })
+    return chunks
 
 
 def node_document_split(state: ImportGraphState) -> ImportGraphState:
@@ -20,40 +129,13 @@ def node_document_split(state: ImportGraphState) -> ImportGraphState:
             raise ValueError(f"[{fun_name}] md_content为空，无法切分")
         file_title = state.get('file_title', '')
 
-        chunks = []
-        in_code = False
-        section_start = 0
-        current_title = ""
+        heading_chunks = _split_by_headings(md_content, file_title)
 
-        for m in re.finditer(r'(^```.*$)|(^(#+)\s+(.+)$)', md_content, re.MULTILINE):
-            if m.group(1):
-                in_code = not in_code
-            elif not in_code and m.group(2):
-                start = m.start()
-                if section_start == 0 and start > 0:
-                    chunks.append({
-                        "title": "",
-                        "content": md_content[:start].strip(),
-                        "file_title": file_title,
-                    })
-                elif section_start > 0:
-                    chunks.append({
-                        "title": current_title,
-                        "content": md_content[section_start:start].strip(),
-                        "file_title": file_title,
-                    })
-                current_title = f"{m.group(3)} {m.group(4)}"
-                section_start = start
+        chunks = _split_chunks(heading_chunks)
+        # 合并过小的 chunk，保证最小大小
+        chunks = _merge_small_chunks(chunks, MIN_CHUNK_SIZE)
 
-        if section_start > 0:
-            chunks.append({
-                "title": current_title,
-                "content": md_content[section_start:].strip(),
-                "file_title": file_title,
-            })
-
-        # state['chunks'] = chunks
-        logger.info(f"[{fun_name}] 切分为 {len(chunks)} 个块")
+        state['chunks'] = chunks
 
     except Exception as e:
         logger.error(f"[{fun_name}] error: {e}")
@@ -79,7 +161,7 @@ if __name__ == '__main__':
     logger.info(f"本地测试 - 项目根目录：{PROJECT_ROOT}")
 
     # 测试MD文件路径（需手动将测试文件放入对应目录）
-    test_md_name = os.path.join(r"output\万用表RS-12的使用", "full_test.md")
+    test_md_name = os.path.join(r"output\万用表RS-12的使用", "full_new.md")
     test_md_path = os.path.join(PROJECT_ROOT, test_md_name)
 
     # 校验测试文件是否存在
