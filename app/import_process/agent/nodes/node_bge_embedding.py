@@ -1,44 +1,11 @@
 import sys
 
-from pymilvus import DataType, MilvusClient
-
-from app.clients.milvus_utils import get_milvus_client
-from app.conf.milvus_config import milvus_config
 from app.core.logger import logger
 from app.import_process.agent.state import ImportGraphState
 from app.lm.embedding_utils import generate_embeddings
 from app.utils.task_utils import add_running_task, add_done_task
 
 _BATCH_SIZE = 5
-
-
-def _ensure_chunks_collection(client: MilvusClient) -> None:
-    """确保 Milvus 中 chunks 集合已创建（不存在则自动创建）。"""
-    collection_name = milvus_config.chunks_collection
-    if client.has_collection(collection_name):
-        return
-
-    schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=True)
-    schema.add_field("chunk_id", DataType.INT64, is_primary=True)
-    schema.add_field("file_title", DataType.VARCHAR, max_length=512)
-    schema.add_field("item_name", DataType.VARCHAR, max_length=512)
-    schema.add_field("title", DataType.VARCHAR, max_length=512)
-    schema.add_field("content", DataType.VARCHAR, max_length=65535)
-    schema.add_field("parent_title", DataType.VARCHAR, max_length=512)
-    schema.add_field("part", DataType.INT8)
-    schema.add_field("dense_vector", DataType.FLOAT_VECTOR, dim=1024)
-    schema.add_field("sparse_vector", DataType.SPARSE_FLOAT_VECTOR)
-
-    index_params = MilvusClient.prepare_index_params()
-    index_params.add_index("dense_vector", index_name="idx_dense_vector",
-                           index_type="HNSW", metric_type="COSINE",
-                           params={"M": 16, "efConstruction": 200})
-    index_params.add_index("sparse_vector", index_name="idx_sparse_vector",
-                           index_type="SPARSE_INVERTED_INDEX", metric_type="IP",
-                           params={"inverted_index_algo": "DAAT_MAXSCORE", "quantization": "none"})
-
-    client.create_collection(collection_name=collection_name, schema=schema, index_params=index_params)
-    logger.info(f"已创建 Milvus 集合: {collection_name}")
 
 
 def _build_embeddings(chunks: list, item_name: str, logger_prefix: str) -> list:
@@ -54,6 +21,7 @@ def _build_embeddings(chunks: list, item_name: str, logger_prefix: str) -> list:
         for i, chunk in enumerate(batch):
             result.append({
                 **chunk,
+                "item_name": item_name,
                 "dense_vector": embeddings["dense"][i],
                 "sparse_vector": embeddings["sparse"][i],
             })
@@ -77,11 +45,6 @@ def node_bge_embedding(state: ImportGraphState) -> ImportGraphState:
 
         state['chunks'] = _build_embeddings(chunks, item_name, fun_name)
 
-        client = get_milvus_client()
-        if not client:
-            raise ConnectionError(f"[{fun_name}] 无法连接 Milvus")
-        _ensure_chunks_collection(client)
-
     except Exception as e:
         logger.error(f"[{fun_name}] error: {e}")
         raise e
@@ -90,3 +53,47 @@ def node_bge_embedding(state: ImportGraphState) -> ImportGraphState:
         add_done_task(state['task_id'], fun_name)
 
     return state
+
+
+# ==========================================
+# 本地单元测试入口
+# 功能：独立验证向量化节点全链路逻辑，无需启动整个LangGraph流程
+# 适用场景：本地开发、调试、模型有效性验证
+# ==========================================
+def test_node_bge_embedding():
+    """本地测试：加载真实 chunks JSON 数据，独立验证向量化节点全链路。"""
+    import json
+    from app.utils.path_util import PROJECT_ROOT
+    from app.import_process.agent.state import create_default_state
+
+    logger.info("=== BGE-M3 向量化节点本地单元测试启动 ===")
+
+    chunks_path = PROJECT_ROOT / "output" / "万用表RS-12的使用_chunks.json"
+    if not chunks_path.exists():
+        logger.error(f"测试文件不存在: {chunks_path}")
+        return
+
+    with open(chunks_path, "r", encoding="utf-8") as f:
+        chunks = json.load(f)
+
+    test_state = create_default_state(
+        task_id="test_task_embedding_001",
+        file_title=chunks[0]["file_title"],
+        chunks=chunks,
+    )
+
+    result_state = node_bge_embedding(test_state)
+    result_chunks = result_state.get("chunks", [])
+
+    logger.info("=== 向量化节点本地测试完成 ===")
+    logger.info(f"任务ID: {test_state.get('task_id')}")
+    logger.info(f"待处理切片数: {len(chunks)} | 实际处理: {len(result_chunks)}")
+
+    for idx, chunk in enumerate(result_chunks):
+        has_dense = "dense_vector" in chunk
+        has_sparse = "sparse_vector" in chunk
+        logger.info(f"第{idx + 1}条: dense={has_dense}, sparse={has_sparse}")
+
+
+if __name__ == '__main__':
+    test_node_bge_embedding()
