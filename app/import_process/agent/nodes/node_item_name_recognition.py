@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from pathlib import Path
@@ -47,11 +48,6 @@ def _call_llm(system_prompt: str, user_prompt: str) -> str:
     return r.content.strip()
 
 
-def _escape_milvus_string(value: str) -> str:
-    """Milvus filter 表达式字符串转义。"""
-    return escape_milvus_string(value)
-
-
 def _save_item_name_to_milvus(client: MilvusClient, collection_name: str, file_title: str, item_name: str, dense_vec: list, sparse_vec: dict) -> None:
     """将 item_name 及其向量写入 Milvus（集合不存在则自动创建）。"""
     if not client.has_collection(collection_name):
@@ -72,7 +68,7 @@ def _save_item_name_to_milvus(client: MilvusClient, collection_name: str, file_t
         client.create_collection(collection_name=collection_name, schema=schema, index_params=index_params)
         logger.info(f"已创建 Milvus 集合: {collection_name}")
 
-    safe_name = _escape_milvus_string(item_name)
+    safe_name = escape_milvus_string(item_name)
     client.delete(collection_name, filter=f'item_name == "{safe_name}"')
     client.insert(collection_name, [{
         "file_title": file_title,
@@ -136,26 +132,16 @@ def test_node_item_name_recognition():
     """
     logger.info("=== 开始执行商品名称识别节点本地测试 ===")
     try:
-        # 1. 构造模拟的ImportGraphState状态（模拟上游节点产出数据）
+        # 1. 加载真实的 chunks 数据构造测试状态
+        from app.utils.path_util import PROJECT_ROOT
+        chunks_path = PROJECT_ROOT / "output" / "万用表RS-12的使用_chunks.json"
+        with open(chunks_path, "r", encoding="utf-8") as f:
+            chunks = json.load(f)
         mock_state = ImportGraphState({
-            "task_id": "test_task_123456",  # 测试任务ID
-            "file_title": "华为Mate60 Pro手机使用说明书",  # 模拟文件标题
-            "file_name": "华为Mate60Pro说明书.pdf",  # 模拟原始文件名（兜底用）
-            # 模拟文本切片列表（上游切片节点产出，含title/content字段）
-            "chunks": [
-                {
-                    "title": "产品简介",
-                    "content": "华为Mate60 Pro是华为公司2023年发布的旗舰智能手机，搭载麒麟9000S芯片，支持卫星通话功能，屏幕尺寸6.82英寸，分辨率2700×1224。"
-                },
-                {
-                    "title": "拍照功能",
-                    "content": "华为Mate60 Pro后置5000万像素超光变摄像头+1200万像素超广角摄像头+4800万像素长焦摄像头，支持5倍光学变焦，100倍数字变焦。"
-                },
-                {
-                    "title": "电池参数",
-                    "content": "电池容量5000mAh，支持88W有线超级快充，50W无线超级快充，反向无线充电功能。"
-                }
-            ]
+            "task_id": "test_task_123456",
+            "file_title": chunks[0]["file_title"],
+            "file_name": "万用表RS-12的使用.pdf",
+            "chunks": chunks,
         })
 
         # 2. 调用商品名称识别核心节点
@@ -175,7 +161,7 @@ def test_node_item_name_recognition():
             milvus_client.load_collection(collection_name)
             # 检索测试结果
             item_name = result_state.get('item_name')
-            safe_name = _escape_milvus_string(item_name)
+            safe_name = escape_milvus_string(item_name)
             res = milvus_client.query(
                 collection_name=collection_name,
                 filter=f'item_name=="{safe_name}"',
