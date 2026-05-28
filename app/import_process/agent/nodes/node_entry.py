@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from app.core.logger import logger
 from app.import_process.agent.state import ImportGraphState
@@ -29,7 +30,7 @@ def node_entry(state: ImportGraphState) -> ImportGraphState:
         return state
 
     # 提取文件无后缀纯名称，作为全局业务标识
-    state['file_title'] = state['local_file_path'].split('/')[-1].split('.')[0]
+    state['file_title'] = Path(state['local_file_path']).stem
 
     logger.info(f"[{fun_name}] end，当前状态：{format_state(state)}")
     add_done_task(state.get('task_id'), fun_name)
