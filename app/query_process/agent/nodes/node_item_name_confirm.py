@@ -1,5 +1,6 @@
 import json
 import sys
+from uuid import uuid4
 
 from app.core.logger import logger
 from app.core.load_prompt import load_prompt
@@ -7,6 +8,9 @@ from app.utils.task_utils import add_running_task, add_done_task
 from app.clients.mongo_history_utils import get_recent_messages, save_chat_message
 from app.lm import lm_utils
 from app.conf.lm_config import lm_config
+from app.clients.milvus_utils import get_milvus_client, hybrid_search, create_hybrid_search_requests
+from app.conf.milvus_config import milvus_config
+from app.lm.embedding_utils import generate_embeddings
 
 
 def _extract_item_names(query: str, history_text: str):
@@ -31,6 +35,47 @@ def _extract_item_names(query: str, history_text: str):
         return [], query
 
 
+def _match_item_names(item_names: list[str]) -> list[dict]:
+    """将 item_names 向量化后与 Milvus 匹配，返回 {input_name, matched_name, score} 列表。"""
+    if not item_names:
+        return []
+
+    client = get_milvus_client()
+    if not client:
+        logger.warning("Milvus 未连接，跳过向量匹配")
+        return [{"input_name": n, "matched_name": n, "score": None} for n in item_names]
+
+    if not client.has_collection(milvus_config.item_name_collection):
+        logger.warning(f"Milvus 集合 {milvus_config.item_name_collection} 不存在")
+        return [{"input_name": n, "matched_name": n, "score": None} for n in item_names]
+
+    client.load_collection(milvus_config.item_name_collection)
+
+    try:
+        embeddings = generate_embeddings(item_names)
+        dense_vecs = embeddings["dense"]
+        sparse_vecs = embeddings["sparse"]
+
+        matched = []
+        for i, name in enumerate(item_names):
+            reqs = create_hybrid_search_requests(dense_vecs[i], sparse_vecs[i], limit=5)
+            res = hybrid_search(client, milvus_config.item_name_collection, reqs, ranker_weights=(0.4, 0.6),
+                                norm_score=True, limit=5, output_fields=["item_name"])
+            if res and res[0]:
+                hit = res[0][0]
+                matched_name = hit["entity"].get("item_name", "")
+                score = hit.get("distance", None)
+                matched.append({"input_name": name, "matched_name": matched_name, "score": score})
+                logger.info(f"商品「{name}」向量匹配成功 → {matched_name} (score: {score})")
+            else:
+                matched.append({"input_name": name, "matched_name": name, "score": None})
+                logger.info(f"商品「{name}」无向量匹配，保留原值")
+        return matched
+    except Exception as e:
+        logger.error(f"商品匹配异常: {e}")
+        return [{"input_name": n, "matched_name": n, "score": None} for n in item_names]
+
+
 def node_item_name_confirm(state):
     """
     节点功能：确认用户问题中的核心商品名称。
@@ -39,7 +84,7 @@ def node_item_name_confirm(state):
     """
     logger.info("---node_item_name_confirm---开始处理")
     # 记录任务开始
-    add_running_task(state["session_id"], sys._getframe().f_code.co_name,state["is_stream"])
+    add_running_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])
 
     # 从mongo获取历史对话
     history = get_recent_messages(state["session_id"], limit=10)
@@ -58,19 +103,22 @@ def node_item_name_confirm(state):
     # 调用 LLM 提取商品名称和改写问题
     item_names, rewritten_query = _extract_item_names(state["original_query"], history_text)
 
+    # 向量化后与 Milvus 匹配确认
+    matched_items = _match_item_names(item_names)
+
     # 记录任务结束
-    add_done_task(state["session_id"], sys._getframe().f_code.co_name,state["is_stream"])
+    add_done_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])
 
     logger.info("---node_item_name_confirm---处理结束")
 
-    return {"item_names": item_names, "rewritten_query": rewritten_query}
+    return {"rewritten_query": rewritten_query}
 
 
 if __name__ == "__main__":
     # 模拟输入状态
     mock_state = {
-        "session_id": "test_session_001",
-        "original_query": "HAK 180 烫金机怎么用22？",
+        "session_id": str(uuid4()),
+        "original_query": "RS-12万用表怎么用？",
         "is_stream": False
     }
 
