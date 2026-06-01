@@ -36,18 +36,18 @@ def _extract_item_names(query: str, history_text: str):
 
 
 def _match_item_names(item_names: list[str]) -> list[dict]:
-    """将 item_names 向量化后与 Milvus 匹配，返回 {input_name, matched_name, score} 列表。"""
+    """将 item_names 向量化后与 Milvus 匹配，返回匹配结果列表。"""
     if not item_names:
         return []
 
     client = get_milvus_client()
     if not client:
         logger.warning("Milvus 未连接，跳过向量匹配")
-        return [{"input_name": n, "matched_name": n, "score": None} for n in item_names]
+        return [{"extracted_name": n, "matches": []} for n in item_names]
 
     if not client.has_collection(milvus_config.item_name_collection):
         logger.warning(f"Milvus 集合 {milvus_config.item_name_collection} 不存在")
-        return [{"input_name": n, "matched_name": n, "score": None} for n in item_names]
+        return [{"extracted_name": n, "matches": []} for n in item_names]
 
     client.load_collection(milvus_config.item_name_collection)
 
@@ -56,24 +56,41 @@ def _match_item_names(item_names: list[str]) -> list[dict]:
         dense_vecs = embeddings["dense"]
         sparse_vecs = embeddings["sparse"]
 
-        matched = []
+        result = []
         for i, name in enumerate(item_names):
             reqs = create_hybrid_search_requests(dense_vecs[i], sparse_vecs[i], limit=5)
             res = hybrid_search(client, milvus_config.item_name_collection, reqs, ranker_weights=(0.4, 0.6),
                                 norm_score=True, limit=5, output_fields=["item_name"])
+            matches = []
             if res and res[0]:
-                hit = res[0][0]
-                matched_name = hit["entity"].get("item_name", "")
-                score = hit.get("distance", None)
-                matched.append({"input_name": name, "matched_name": matched_name, "score": score})
-                logger.info(f"商品「{name}」向量匹配成功 → {matched_name} (score: {score})")
-            else:
-                matched.append({"input_name": name, "matched_name": name, "score": None})
-                logger.info(f"商品「{name}」无向量匹配，保留原值")
-        return matched
+                for hit in res[0]:
+                    matched_name = hit["entity"].get("item_name", "")
+                    score = hit.get("distance", None)
+                    matches.append({"item_name": matched_name, "score": score})
+            result.append({"extracted_name": name, "matches": matches})
+        return result
     except Exception as e:
         logger.error(f"商品匹配异常: {e}")
-        return [{"input_name": n, "matched_name": n, "score": None} for n in item_names]
+        return [{"extracted_name": n, "matches": []} for n in item_names]
+
+
+def _filter_matches(matched_items: list[dict]) -> tuple[list[str], list[dict]]:
+    """筛选匹配结果，返回 (confirmed_item_names, options)。"""
+    confirmed_item_names = []
+    options = []
+    for item in matched_items:
+        high = [m for m in item["matches"] if m.get("score") is not None and m["score"] >= 0.85]
+        if high:
+            exact = [m for m in high if m["item_name"] == item["extracted_name"]]
+            if exact:
+                confirmed_item_names.append(exact[0]["item_name"])
+            else:
+                confirmed_item_names.append(max(high, key=lambda m: m["score"])["item_name"])
+        else:
+            mid = [m for m in item["matches"] if m.get("score") is not None and 0.6 <= m["score"] < 0.85]
+            mid.sort(key=lambda m: m["score"], reverse=True)
+            options.extend(mid[:2])
+    return confirmed_item_names, options
 
 
 def node_item_name_confirm(state):
@@ -106,12 +123,21 @@ def node_item_name_confirm(state):
     # 向量化后与 Milvus 匹配确认
     matched_items = _match_item_names(item_names)
 
+    # 筛选匹配结果
+    confirmed_item_names, options = _filter_matches(matched_items)
+    logger.info(f"已确认商品: {confirmed_item_names}, 候选: {[m['item_name'] for m in options]}")
+
     # 记录任务结束
     add_done_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])
 
     logger.info("---node_item_name_confirm---处理结束")
 
-    return {"rewritten_query": rewritten_query}
+    return {
+        "rewritten_query": rewritten_query,
+        "item_names": confirmed_item_names,
+        "matched_items": matched_items,
+        "options": options,
+    }
 
 
 if __name__ == "__main__":
