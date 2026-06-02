@@ -59,7 +59,7 @@ def _match_item_names(item_names: list[str]) -> list[dict]:
         result = []
         for i, name in enumerate(item_names):
             reqs = create_hybrid_search_requests(dense_vecs[i], sparse_vecs[i], limit=5)
-            res = hybrid_search(client, milvus_config.item_name_collection, reqs, ranker_weights=(0.4, 0.6),
+            res = hybrid_search(client, milvus_config.item_name_collection, reqs, ranker_weights=(0.8, 0.2),
                                 norm_score=True, limit=5, output_fields=["item_name"])
             matches = []
             if res and res[0]:
@@ -74,23 +74,23 @@ def _match_item_names(item_names: list[str]) -> list[dict]:
         return [{"extracted_name": n, "matches": []} for n in item_names]
 
 
-def _filter_matches(matched_items: list[dict]) -> tuple[list[str], list[dict]]:
-    """筛选匹配结果，返回 (confirmed_item_names, options)。"""
-    confirmed_item_names = []
+def _filter_matches(matched_items: list[dict]) -> tuple[str, list[dict]]:
+    """筛选匹配结果，返回 (confirmed_item_name, options)。"""
+    confirmed = ""
     options = []
     for item in matched_items:
         high = [m for m in item["matches"] if m.get("score") is not None and m["score"] >= 0.85]
         if high:
             exact = [m for m in high if m["item_name"] == item["extracted_name"]]
             if exact:
-                confirmed_item_names.append(exact[0]["item_name"])
+                confirmed = exact[0]["item_name"]
             else:
-                confirmed_item_names.append(max(high, key=lambda m: m["score"])["item_name"])
+                confirmed = max(high, key=lambda m: m["score"])["item_name"]
         else:
             mid = [m for m in item["matches"] if m.get("score") is not None and 0.6 <= m["score"] < 0.85]
             mid.sort(key=lambda m: m["score"], reverse=True)
             options.extend(mid[:2])
-    return confirmed_item_names, options
+    return confirmed, options
 
 
 def node_item_name_confirm(state):
@@ -124,27 +124,31 @@ def node_item_name_confirm(state):
     matched_items = _match_item_names(item_names)
 
     # 筛选匹配结果
-    confirmed_item_names, options = _filter_matches(matched_items)
-    logger.info(f"已确认商品: {confirmed_item_names}, 候选: {[m['item_name'] for m in options]}")
+    confirmed_item_name, options = _filter_matches(matched_items)
+    logger.info(f"已确认商品: {confirmed_item_name}, 候选: {[m['item_name'] for m in options]}")
+
+    if confirmed_item_name:
+        state["item_name"] = confirmed_item_name
+        state["rewritten_query"] = rewritten_query
+    else:
+        options_str = "、".join(m["item_name"] for m in options)
+        state["answer"] = f"您是想问以下哪个产品：{options_str}？请明确一下型号。"
+        save_chat_message(session_id=state["session_id"], role="assistant", text=state["original_query"],
+                          rewritten_query=rewritten_query,item_names=item_names)
 
     # 记录任务结束
     add_done_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])
 
     logger.info("---node_item_name_confirm---处理结束")
 
-    return {
-        "rewritten_query": rewritten_query,
-        "item_names": confirmed_item_names,
-        "matched_items": matched_items,
-        "options": options,
-    }
+    return state
 
 
 if __name__ == "__main__":
     # 模拟输入状态
     mock_state = {
-        "session_id": str(uuid4()),
-        "original_query": "RS-12万用表怎么用？",
+        "session_id": 'session_id_1',
+        "original_query": "它好用吗？",
         "is_stream": False
     }
 
