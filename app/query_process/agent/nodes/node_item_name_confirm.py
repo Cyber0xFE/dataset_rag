@@ -74,18 +74,18 @@ def _match_item_names(item_names: list[str]) -> list[dict]:
         return [{"extracted_name": n, "matches": []} for n in item_names]
 
 
-def _filter_matches(matched_items: list[dict]) -> tuple[str, list[dict]]:
-    """筛选匹配结果，返回 (confirmed_item_name, options)。"""
-    confirmed = ""
+def _filter_matches(matched_items: list[dict]) -> tuple[list[str], list[dict]]:
+    """筛选匹配结果，返回 (confirmed_item_names, options)。"""
+    confirmed = []
     options = []
     for item in matched_items:
         high = [m for m in item["matches"] if m.get("score") is not None and m["score"] >= 0.85]
         if high:
             exact = [m for m in high if m["item_name"] == item["extracted_name"]]
             if exact:
-                confirmed = exact[0]["item_name"]
+                confirmed.append(exact[0]["item_name"])
             else:
-                confirmed = max(high, key=lambda m: m["score"])["item_name"]
+                confirmed.append(max(high, key=lambda m: m["score"])["item_name"])
         else:
             mid = [m for m in item["matches"] if m.get("score") is not None and 0.6 <= m["score"] < 0.85]
             mid.sort(key=lambda m: m["score"], reverse=True)
@@ -124,11 +124,11 @@ def node_item_name_confirm(state):
     matched_items = _match_item_names(item_names)
 
     # 筛选匹配结果
-    confirmed_item_name, options = _filter_matches(matched_items)
-    logger.info(f"已确认商品: {confirmed_item_name}, 候选: {[m['item_name'] for m in options]}")
+    confirmed_item_names, options = _filter_matches(matched_items)
+    logger.info(f"已确认商品: {confirmed_item_names}, 候选: {[m['item_name'] for m in options]}")
 
-    if confirmed_item_name:
-        state["item_name"] = confirmed_item_name
+    if confirmed_item_names:
+        state["item_names"] = confirmed_item_names
         state["rewritten_query"] = rewritten_query
     else:
         options_str = "、".join(m["item_name"] for m in options)
