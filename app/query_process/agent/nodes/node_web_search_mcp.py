@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     test_state = {
         "session_id": "test_mcp_session",
-        "rewritten_query": "HAK 180 在出厂默认状态下，若想在纸张上只把烫金膜转印到顶部 50 mm–170 mm 的局部区域，应在操作面板上如何设置",
+        "rewritten_query": "万用表RS-12使用说明",
         "is_stream": False
     }
 
