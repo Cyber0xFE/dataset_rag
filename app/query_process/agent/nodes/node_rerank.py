@@ -4,6 +4,14 @@ from app.core.logger import logger
 from app.utils.task_utils import add_running_task, add_done_task
 from app.lm.reranker_utils import get_reranker_model
 
+# 动态 TopK 硬上限：最多取前 N 条（<=10）
+RERANK_MAX_TOPK: int = 10
+# 最小 TopK：至少保留前 N 条（>=1，且 <= RERANK_MAX_TOPK）
+RERANK_MIN_TOPK: int = 1
+# 断崖阈值（相对）
+RERANK_GAP_RATIO: float = 0.25
+# 断崖阈值（绝对）
+RERANK_GAP_ABS: float = 0.5
 
 def _merge_docs(rrf_chunks: list, web_docs: list) -> list[dict]:
     """将 rrf_chunks 和 web_search_docs 合并为统一结构。"""
@@ -41,6 +49,32 @@ def _rerank_docs(docs: list[dict], query: str):
     logger.info(f"rerank 重排序完成，输入 {len(docs)} 条")
 
 
+RERANK_MAX_TOPK = 10
+RERANK_MIN_TOPK = 3
+RERANK_GAP_ABS = 0.5
+RERANK_GAP_RATIO = 0.25
+
+
+def _truncate_docs(docs: list[dict]) -> list[dict]:
+    """按分数差距截取文档列表。"""
+    if len(docs) <= RERANK_MIN_TOPK:
+        return docs
+
+    for i in range(1, len(docs)):
+        prev_score = docs[i - 1]["rerank_score"]
+        cur_score = docs[i]["rerank_score"]
+        if prev_score == 0:
+            continue
+        if abs(cur_score - prev_score) >= RERANK_GAP_ABS \
+                or (prev_score - cur_score) / prev_score >= RERANK_GAP_RATIO:
+            truncated = docs[:i]
+            if len(truncated) < RERANK_MIN_TOPK:
+                truncated = docs[:RERANK_MIN_TOPK]
+            return truncated[:RERANK_MAX_TOPK]
+
+    return docs[:RERANK_MAX_TOPK]
+
+
 def node_rerank(state):
     add_running_task(state["session_id"], sys._getframe().f_code.co_name, state.get("is_stream"))
 
@@ -52,6 +86,9 @@ def node_rerank(state):
     # 使用重排序模型对merged进行重排序
     query = state.get("rewritten_query") or state.get("original_query", "")
     _rerank_docs(merged, query)
+
+    # 截取 topk
+    merged = _truncate_docs(merged)
 
     state["reranked_docs"] = merged
 
@@ -168,6 +205,7 @@ if __name__ == "__main__":
         # 验证逻辑：
         # 预期 "local_1", "local_2", "Rerank技术详解" 分数较高
         # 预期 "local_3", "无关网页" 分数较低，可能被截断或排在最后
+
 
         top1_score = reranked[0].get("score")
         if top1_score > 0:
