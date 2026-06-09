@@ -51,7 +51,7 @@ def node_search_embedding(state: QueryGraphState) -> QueryGraphState:
         logger.error(f"向量检索异常: {e}")
 
     add_done_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])
-    return state
+    return {"embedding_chunks": state.get("embedding_chunks", [])}
 
 
 if __name__ == "__main__":

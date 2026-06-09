@@ -1,7 +1,8 @@
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import uvicorn
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import Field, BaseModel
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse, StreamingResponse
@@ -20,6 +21,9 @@ from app.utils.task_utils import (
 from app.utils.sse_utils import create_sse_queue, sse_generator, push_to_session
 from app.query_process.agent.main_graph import kb_query_app
 from app.core.logger import logger
+
+_pending_queries: dict[str, str] = {}
+_executor = ThreadPoolExecutor(max_workers=4)
 
 app = FastAPI(title="query service", description="掌柜智库查询服务！")
 app.add_middleware(
@@ -105,17 +109,16 @@ def _run_query_pipeline(session_id: str, query: str, is_stream: bool = False) ->
 
 
 @app.post("/query")
-async def query_endpoint(req: QueryRequest, background_tasks: BackgroundTasks):
+async def query_endpoint(req: QueryRequest):
     session_id = req.session_id
     if not session_id:
         session_id = "sess-" + uuid.uuid4().hex[:16]
 
     if req.is_stream:
         create_sse_queue(session_id)
-        background_tasks.add_task(_run_query_pipeline, session_id, req.query, True)
+        _pending_queries[session_id] = req.query
         return {"session_id": session_id}
 
-    # 非流式：同步执行 LangGraph
     _run_query_pipeline(session_id, req.query)
     return {
         "session_id": session_id,
@@ -127,16 +130,18 @@ async def query_endpoint(req: QueryRequest, background_tasks: BackgroundTasks):
 
 @app.get("/stream/{session_id}")
 async def stream(session_id: str, request: Request):
+    query = _pending_queries.pop(session_id, None)
+    if query:
+        _executor.submit(_run_query_pipeline, session_id, query, True)
+
     return StreamingResponse(
         sse_generator(session_id, request),
         media_type="text/event-stream",
     )
 
+
 @app.get("/history/{session_id}")
 async def history(session_id: str, limit: int = 50):
-    """
-    查询当前会话历史记录
-    """
     try:
         records = get_recent_messages(session_id, limit=limit)
         items = []
@@ -154,10 +159,12 @@ async def history(session_id: str, limit: int = 50):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"history error: {e}")
 
+
 @app.delete("/history/{session_id}")
 async def clear_chat_history(session_id: str):
-    count =  clear_history(session_id)
+    count = clear_history(session_id)
     return {"message": "History cleared", "deleted_count": count}
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8001)

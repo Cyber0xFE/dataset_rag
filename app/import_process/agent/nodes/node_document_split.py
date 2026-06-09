@@ -97,6 +97,21 @@ def _merge_small_chunks(chunks: list, min_size: int) -> list:
     return result
 
 
+def _protect_images(text: str) -> tuple[str, list[str]]:
+    """保护 Markdown 图片链接，替换为占位符，返回 (替换后文本, 图片列表)。"""
+    images = re.findall(r'!\[.*?\]\(.*?\)', text)
+    for i, img in enumerate(images):
+        text = text.replace(img, f"__IMG_{i}__", 1)
+    return text, images
+
+
+def _restore_images(text: str, images: list[str]) -> str:
+    """将占位符还原为原始图片链接。"""
+    for i, img in enumerate(images):
+        text = text.replace(f"__IMG_{i}__", img)
+    return text
+
+
 def _split_chunks(heading_chunks: list) -> list:
     """用 RecursiveCharacterTextSplitter 对每个 heading chunk 递归切割，补 overlap。"""
     splitter = RecursiveCharacterTextSplitter(
@@ -104,8 +119,10 @@ def _split_chunks(heading_chunks: list) -> list:
     )
     chunks = []
     for c in heading_chunks:
-        sub_texts = splitter.split_text(c['content'])
+        content, images = _protect_images(c['content'])
+        sub_texts = splitter.split_text(content)
         sub_texts = _ensure_overlap(sub_texts, CHUNK_OVERLAP)
+        sub_texts = [_restore_images(st, images) for st in sub_texts]
         for part_no, st in enumerate(sub_texts):
             chunks.append({
                 "title": f"{c['title']}_{part_no}",

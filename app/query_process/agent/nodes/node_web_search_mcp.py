@@ -41,7 +41,7 @@ def node_web_search_mcp(state):
         logger.warning("查询为空，跳过网络搜索")
 
     add_done_task(state["session_id"], sys._getframe().f_code.co_name, state["is_stream"])
-    return state
+    return {"web_search_docs": state.get("web_search_docs", [])}
 
 
 if __name__ == '__main__':

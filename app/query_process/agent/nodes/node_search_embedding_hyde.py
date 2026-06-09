@@ -61,7 +61,7 @@ def node_search_embedding_hyde(state):
         logger.error(f"HyDE 检索异常: {e}")
 
     add_done_task(state["session_id"], sys._getframe().f_code.co_name, state.get("is_stream"))
-    return state
+    return {"hyde_embedding_chunks": state.get("hyde_embedding_chunks", [])}
 
 
 if __name__ == "__main__":
