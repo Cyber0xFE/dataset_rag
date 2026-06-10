@@ -75,9 +75,8 @@ def node_answer_output(state):
         _push_answer(session_id, answer, is_stream)
         return state
 
-    if not answer:
-        _generate_answer_from_docs(state, session_id, is_stream)
-        answer = state.get("answer", "")
+    _generate_answer_from_docs(state, session_id, is_stream)
+    answer = state.get("answer", "")
 
     if answer:
         save_chat_message(session_id, "assistant", answer,
