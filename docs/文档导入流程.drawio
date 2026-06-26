@@ -1,0 +1,95 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.0.3 Chrome/140.0.7339.249 Electron/38.7.0 Safari/537.36" version="29.0.3">
+  <diagram name="第 1 页" id="cRKOC6x8unyE_jcr_3kh">
+    <mxGraphModel dx="1042" dy="722" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="GadEcI-um8SxzRVKOPGR-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="GadEcI-um8SxzRVKOPGR-1" target="GadEcI-um8SxzRVKOPGR-23">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="125" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-11" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;PDF&lt;/font&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];rounded=0;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" connectable="0" parent="GadEcI-um8SxzRVKOPGR-10">
+          <mxGeometry x="-0.1953" y="-3" relative="1" as="geometry">
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="GadEcI-um8SxzRVKOPGR-1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="610" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-22" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;MD&lt;/font&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];rounded=0;strokeColor=default;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" connectable="0" parent="GadEcI-um8SxzRVKOPGR-20">
+          <mxGeometry x="0.0441" y="1" relative="1" as="geometry">
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-1" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;PDF/MD&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="110" y="230" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="GadEcI-um8SxzRVKOPGR-23" target="GadEcI-um8SxzRVKOPGR-18">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="125" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-17" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="860" y="240" width="350" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-12" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;文档切分&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-17">
+          <mxGeometry width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-16" value="&lt;div&gt;&lt;ol&gt;&lt;li&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;粗切：按标题/段落切分&lt;/font&gt;&lt;/li&gt;&lt;li&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;细切：基于每个段落，用递归切割器按照：。，！？等分割，&lt;br&gt;每个chunk保证在500~1500字符之间，并且有100个字符的重叠&lt;br&gt;注意：为了防止图片链接被切断，需要单独将图片提出来用占位符代替，切分完成后再将占位符还原回去&lt;/font&gt;&lt;/li&gt;&lt;/ol&gt;&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;arcSize=16;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-17">
+          <mxGeometry y="70" width="350" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="GadEcI-um8SxzRVKOPGR-18" target="GadEcI-um8SxzRVKOPGR-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-23" value="&lt;span style=&quot;font-size: 16px;&quot;&gt;使用MinerU将PDF转为MD&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=default;align=center;verticalAlign=middle;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" parent="1">
+          <mxGeometry x="350" y="90" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-25" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="610" y="240" width="190" height="195" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-18" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;图片处理&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=default;align=center;verticalAlign=middle;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-25">
+          <mxGeometry width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-24" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;1. 将图片发给视觉模型：qwen-vl-flash生成摘要&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;2. 将图片上传到minio返回链接&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;3. 将摘要和链接替换到MD中&lt;/font&gt;&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-25">
+          <mxGeometry y="80" width="190" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-26" value="" style="group;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="1260" y="230" width="360" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-27" value="&lt;span style=&quot;font-size: 16px;&quot;&gt;item_name提取&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-26">
+          <mxGeometry x="30" y="10" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-28" value="&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;将每个文档切分出的chunks截取前面几个作为上下文交给大模型去识别出item_name，&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;给item_name生成向量（dense，sparse），并写入milvus:&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;{&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp; &quot;file_title&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp; &quot;item_name&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp; &quot;dense_vector&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp; &quot;sparse_vector&quot;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;}&lt;/span&gt;&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;arcSize=16;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-26">
+          <mxGeometry x="30" y="80" width="260" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="GadEcI-um8SxzRVKOPGR-12" target="GadEcI-um8SxzRVKOPGR-27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-32" value="&lt;span style=&quot;font-size: 16px;&quot;&gt;生成向量&lt;br&gt;将chunks发送给嵌入式模型（&lt;/span&gt;&lt;span style=&quot;font-family: &amp;quot;JetBrains Mono&amp;quot;, monospace; font-size: 12.8pt; background-color: rgb(255, 255, 255); color: rgb(8, 8, 8);&quot;&gt;BAAI/bge-m3&lt;/span&gt;&lt;span style=&quot;font-size: 16px; background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;）&lt;br&gt;分别生成稠密向量（dense）和稀疏向量（sparse）&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;align=left;verticalAlign=middle;arcSize=16;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=none;gradientColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1690" y="225" width="370" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="GadEcI-um8SxzRVKOPGR-27" target="GadEcI-um8SxzRVKOPGR-32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-37" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="1620" y="180" width="440" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-34" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;{&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;...chunk&quot;:&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;item_name&quot;: &quot;xxx&quot;,&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;dense_vector&quot;: [xxx],&amp;nbsp; // index: HNSW&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;sparse_vector&quot;: [xxx]&amp;nbsp; // index: 倒排索引&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;}&lt;/font&gt;&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="GadEcI-um8SxzRVKOPGR-37">
+          <mxGeometry x="90" y="124" width="320" height="196" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-35" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;{&lt;/font&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;chunk_id&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;file_title&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;content&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;parent_title&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;title&quot;,&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 16px;&quot;&gt;&amp;nbsp; &quot;part&quot;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 16px;&quot;&gt;}&lt;/font&gt;&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" vertex="1" parent="1">
+          <mxGeometry x="2080" y="304" width="220" height="196" as="geometry" />
+        </mxCell>
+        <mxCell id="GadEcI-um8SxzRVKOPGR-41" value="" style="endArrow=classic;html=1;rounded=0;fontFamily=Helvetica;fontSize=12;fontColor=default;entryX=-0.036;entryY=0.324;entryDx=0;entryDy=0;entryPerimeter=0;dashed=1;strokeWidth=2;" edge="1" parent="1" target="GadEcI-um8SxzRVKOPGR-35">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1800" y="370" as="sourcePoint" />
+            <mxPoint x="1850" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
