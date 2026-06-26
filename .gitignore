@@ -6,10 +6,8 @@ __pycache__/
 dist/
 build/
 
-# IDE - 项目共享配置保留，用户个人配置忽略
-.idea/workspace.xml
-.idea/*.xml
-!.idea/misc.xml
+# IDE
+.idea/
 
 # 运行时
 logs/
